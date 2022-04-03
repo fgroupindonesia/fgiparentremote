@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">FGI Parent Remote</string>
+    <string name="label_menu_shutdown">Shutdown PC</string>
+    <string name="label_menu_mute">Mute Audio</string>
+    <string name="label_menu_unmute">Un-Mute Audio</string>
+    <string name="label_menu_message">Message</string>
+    <string name="label_menu_clear_message">Clear Message</string>
+    <string name="label_menu_about">About</string>
+    <string name="label_menu_restart">Restart PC</string>
+    <string name="label_menu_kill">Kill app</string>
+    <string name="label_text_status">Status: -</string>
+    <string name="label_button_connect">Connect</string>
+    <string name="label_text_tulislah_pesan">Write text to be shown :</string>
+    <string name="label_text_type_here">Type here...</string>
+</resources>
