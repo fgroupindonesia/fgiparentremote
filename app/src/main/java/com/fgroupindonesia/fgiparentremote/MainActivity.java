@@ -1,5 +1,6 @@
 package com.fgroupindonesia.fgiparentremote;
 
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -8,6 +9,7 @@ import androidx.core.content.ContextCompat;
 import android.Manifest;
 import android.app.Dialog;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
@@ -25,6 +27,7 @@ import android.widget.TextView;
 import com.google.gson.Gson;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
@@ -32,16 +35,19 @@ import java.util.ArrayList;
 
 import bean.Entry;
 import bean.Reply;
+import helper.Keys;
 import helper.ShowDialog;
+import helper.UserData;
 
 public class MainActivity extends AppCompatActivity {
 
     Button buttonConnect;
     TextView textViewMessage, textViewMute, textViewInfo;
     ImageView imageViewMessage;
+    EditText editTextRemoteIP;
 
-    public static String SERVER_IP = "192.168.0.8";
-    public static final int SERVER_PORT = 2004;
+    public String SERVER_IP = null;
+    public final int SERVER_PORT = 2004;
 
     TableLayout tableLayout;
 
@@ -53,8 +59,14 @@ public class MainActivity extends AppCompatActivity {
             buttonConnect.setVisibility(View.VISIBLE);
         } else {
             tableLayout.setAlpha(1f);
-            buttonConnect.setVisibility(View.GONE);
+            buttonConnect.setVisibility(View.INVISIBLE);
+        }
+    }
 
+    private void needHide() {
+        try {
+            this.getSupportActionBar().hide();
+        } catch (NullPointerException e) {
         }
     }
 
@@ -63,11 +75,18 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        needHide();
+
+        // for later usage
+        UserData.setPreference(this);
+
         buttonConnect = (Button) findViewById(R.id.buttonConnect);
         tableLayout = (TableLayout) findViewById(R.id.tableLayout);
         hideAccess(true);
 
         imageViewMessage = (ImageView) findViewById(R.id.imageViewMessage);
+
+        editTextRemoteIP = (EditText) findViewById(R.id.editTextRemoteIP);
 
         linearLoading = (LinearLayout) findViewById(R.id.linearLoading);
         linearError = (LinearLayout) findViewById(R.id.linearError);
@@ -87,9 +106,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void startConnecting(View v) {
-        ShowDialog.message(this, "start connecting to " + SERVER_IP);
-        new Thread(new ThreadConnector()).start();
 
+        if(SERVER_IP==null){
+            ShowDialog.message(this, "start connecting...");
+        }else{
+            ShowDialog.message(this, "resuming..." + SERVER_IP);
+        }
+
+        if (editTextRemoteIP.getText().toString().length() > 0) {
+            SERVER_IP = editTextRemoteIP.getText().toString();
+            // save locally
+            UserData.savePreference(Keys.IP_ADDRESS, SERVER_IP);
+
+            new Thread(new ThreadConnector()).start();
+        } else {
+            ShowDialog.message(this, "Please input the valid IP Address first for connecting remote.");
+        }
 
     }
 
@@ -180,7 +212,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 dataMessage = edtMessage.getText().toString();
                 sendMessage(linearLayoutView, dataMessage);
-                 dialog.dismiss();
+                dialog.dismiss();
             }
         });
 
@@ -195,16 +227,49 @@ public class MainActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    @Override
+    public void onResume() {
+        // this will reconnecting back
+        SERVER_IP = UserData.getPreferenceString(Keys.IP_ADDRESS);
+
+        if(SERVER_IP!=null){
+             editTextRemoteIP.setText(SERVER_IP);
+        }else{
+            editTextRemoteIP.setVisibility(View.VISIBLE);
+        }
+
+        if (socket == null) {
+            startConnecting(null);
+        } else if (socket != null) {
+            if (socket.isClosed())
+                startConnecting(null);
+        }
+        super.onResume();
+    }
+
+    @Override
+    public void onStop() {
+        if (socket != null) {
+            try {
+                socket.close();
+            } catch (Exception e) {
+                ShowDialog.message(this, "Error when closing socket!");
+            }
+        }
+
+        super.onStop();
+    }
+
     ListView lstAppName;
     LinearLayout linearButtonKillApp;
-    ArrayList<String> listAppNames =new ArrayList<String>();
+    ArrayList<String> listAppNames = new ArrayList<String>();
     ArrayAdapter<String> adapter;
 
     String temp;
 
     ProgressBar progressBarLoadingApp;
 
-    public void showListingApp(){
+    public void showListingApp() {
         listAppNames.clear();
 
         dialog = new Dialog(this);
@@ -220,7 +285,7 @@ public class MainActivity extends AppCompatActivity {
         progressBarLoadingApp = dialog.findViewById(R.id.progressBarLoadingApp);
 
 
-        adapter=new ArrayAdapter<String>(this,
+        adapter = new ArrayAdapter<String>(this,
                 android.R.layout.simple_list_item_1,
                 listAppNames);
         lstAppName.setAdapter(adapter);
@@ -228,7 +293,7 @@ public class MainActivity extends AppCompatActivity {
         lstAppName.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-               temp = lstAppName.getItemAtPosition(position).toString();
+                temp = lstAppName.getItemAtPosition(position).toString();
             }
         });
 
@@ -252,11 +317,13 @@ public class MainActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    private void extractAppNameData(Reply dataIn){
-       String overAll [] = dataIn.getData().split(";");
-       for(String n: overAll){
-           adapter.add(n);
-       }
+    private void extractAppNameData(Reply dataIn) {
+        String overAll[] = dataIn.getData().split(";");
+        for (String n : overAll) {
+            adapter.add(n);
+        }
+
+        progressBarLoadingApp.setVisibility(View.INVISIBLE);
     }
 
     private void sendMessage(View vLinear, String pesan) {
@@ -319,15 +386,22 @@ public class MainActivity extends AppCompatActivity {
                 socket = new Socket(SERVER_IP, SERVER_PORT);
                 output = new PrintWriter(socket.getOutputStream(), true);
                 input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        textViewInfo.setText("Connected");
+                        textViewInfo.setText("Connecting...");
+                        buttonConnect.setVisibility(View.INVISIBLE);
+                        editTextRemoteIP.setVisibility(View.INVISIBLE);
                     }
                 });
+
                 new Thread(new ThreadReceiver()).start();
             } catch (Exception e) {
                 e.printStackTrace();
+                buttonConnect.setVisibility(View.VISIBLE);
+                editTextRemoteIP.setVisibility(View.VISIBLE);
+                ShowDialog.message(MainActivity.this, "Error at 368 " + e.getMessage());
             }
         }
     }
@@ -362,11 +436,15 @@ public class MainActivity extends AppCompatActivity {
                             }
                         });
                     } else {
-                        new Thread(new ThreadConnector()).start();
-                        return;
+                        break;
+                        //new Thread(new ThreadConnector()).start();
+                        //return;
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
+                    // session closed
+                    buttonConnect.setVisibility(View.VISIBLE);
+                    editTextRemoteIP.setVisibility(View.VISIBLE);
                 }
             }
         }

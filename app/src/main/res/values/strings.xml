@@ -6,6 +6,7 @@
     <string name="label_menu_message">Message</string>
     <string name="label_menu_clear_message">Clear Message</string>
     <string name="label_menu_about">About</string>
+    <string name="label_remote_ip_address">Remote Ip Address</string>
     <string name="label_menu_restart">Restart PC</string>
     <string name="label_menu_kill">Kill app</string>
     <string name="label_text_status">Status: -</string>
