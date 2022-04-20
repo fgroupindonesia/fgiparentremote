@@ -1,5 +1,5 @@
 git add .
-git commit -m "updating with Centered Text for Warning Message correctly!"
+git commit -m "Adding Map Tracker with a public Key API from GoogleMaps Javascript mode."
 git push origin main
 git gc --prune
 git pull

@@ -1,17 +1,20 @@
 package com.fgroupindonesia.fgiparentremote;
 
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 import android.app.Dialog;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.drawable.ColorDrawable;
-import android.os.Build;
+
 import android.os.Bundle;
+import android.os.Handler;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -21,23 +24,27 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
+import android.widget.SeekBar;
+import android.widget.Spinner;
 import android.widget.TableLayout;
 import android.widget.TextView;
 
 import com.google.gson.Gson;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.List;
 
 import bean.Entry;
 import bean.Reply;
+import bean.TargetProfile;
 import helper.Keys;
 import helper.ShowDialog;
 import helper.UserData;
+import helper.WhatsappSender;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -45,9 +52,14 @@ public class MainActivity extends AppCompatActivity {
     TextView textViewMessage, textViewMute, textViewInfo;
     ImageView imageViewMessage;
     EditText editTextRemoteIP;
+    SeekBar seekBarVolume;
+
+    int currentVol = 0;
 
     public String SERVER_IP = null;
     public final int SERVER_PORT = 2004;
+
+    LinearLayout linearAudio;
 
     TableLayout tableLayout;
 
@@ -70,15 +82,56 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void loadStoredProfileData(){
+        STORED_PROFILE = UserData.getPreferenceString(Keys.TARGET_PROFILE);
+        tpList = new Gson().fromJson(STORED_PROFILE, TargetProfile[].class);
+    }
+
+    private void applyOnChangedListener(SeekBar skb){
+        skb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                currentVol = progress;
+                textViewInfo.setText("Volume : " + currentVol);
+
+                if(currentVol==0){
+                    linearAudio.setTag("unmute");
+                    imageViewAudio.setImageResource(R.drawable.unmute);
+                    textViewMute.setText("Unmute Audio");
+                }else if(currentVol == 100){
+                    linearAudio.setTag("mute");
+                    imageViewAudio.setImageResource(R.drawable.mute);
+                    textViewMute.setText("Mute Audio");
+                }
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        // centerTitle();
+        //needHide();
 
-        needHide();
+
 
         // for later usage
         UserData.setPreference(this);
+
+        // for storing profile later
+        loadStoredProfileData();
 
         buttonConnect = (Button) findViewById(R.id.buttonConnect);
         tableLayout = (TableLayout) findViewById(R.id.tableLayout);
@@ -91,6 +144,7 @@ public class MainActivity extends AppCompatActivity {
         linearLoading = (LinearLayout) findViewById(R.id.linearLoading);
         linearError = (LinearLayout) findViewById(R.id.linearError);
         linearMenu = (LinearLayout) findViewById(R.id.linearMenu);
+        linearAudio = (LinearLayout) findViewById(R.id.linearAudio);
 
         textViewInfo = (TextView) findViewById(R.id.textViewInfo);
         textViewMute = (TextView) findViewById(R.id.textViewMute);
@@ -99,17 +153,23 @@ public class MainActivity extends AppCompatActivity {
 
         imageViewAudio = (ImageView) findViewById(R.id.imageViewAudio);
 
+        seekBarVolume = (SeekBar) findViewById(R.id.seekBarVolume);
+        seekBarVolume.setProgress(0);
+
+        // set the onchangelistener
+        applyOnChangedListener(seekBarVolume);
+
         showLoading();
 
-        checkPermission();
 
+
+        //UserData.savePreference(Keys.TARGET_PROFILE, null);
+        checkAndRequestPermissions();
     }
 
     public void startConnecting(View v) {
 
-        if(SERVER_IP==null){
-            ShowDialog.message(this, "start connecting...");
-        }else{
+        if (SERVER_IP != null) {
             ShowDialog.message(this, "resuming..." + SERVER_IP);
         }
 
@@ -155,9 +215,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
     public void aboutApp(View v) {
-        ShowDialog.message(this, "FGI Parent Control v1.0 -Android-");
+        ShowDialog.message(this, "FGI Parent Control Remote v1.0 -Android-");
     }
 
     public void killApp(String filename) {
@@ -232,18 +291,16 @@ public class MainActivity extends AppCompatActivity {
         // this will reconnecting back
         SERVER_IP = UserData.getPreferenceString(Keys.IP_ADDRESS);
 
-        if(SERVER_IP!=null){
-             editTextRemoteIP.setText(SERVER_IP);
-        }else{
+        if (SERVER_IP != null) {
+            editTextRemoteIP.setText(SERVER_IP);
+        } else {
+            editTextRemoteIP.setText("");
             editTextRemoteIP.setVisibility(View.VISIBLE);
         }
 
-        if (socket == null) {
-            startConnecting(null);
-        } else if (socket != null) {
-            if (socket.isClosed())
-                startConnecting(null);
-        }
+
+        startConnecting(null);
+
         super.onResume();
     }
 
@@ -390,9 +447,14 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        textViewInfo.setText("Connecting...");
+                        showMessage("Connecting...");
                         buttonConnect.setVisibility(View.INVISIBLE);
                         editTextRemoteIP.setVisibility(View.INVISIBLE);
+
+                        if (menuDisconnect != null) {
+                            menuDisconnect.setVisible(true);
+                            menuSaveProfile.setVisible(true);
+                        }
                     }
                 });
 
@@ -402,6 +464,17 @@ public class MainActivity extends AppCompatActivity {
                 buttonConnect.setVisibility(View.VISIBLE);
                 editTextRemoteIP.setVisibility(View.VISIBLE);
                 ShowDialog.message(MainActivity.this, "Error at 368 " + e.getMessage());
+            }
+        }
+    }
+
+    class ThreadDisconnector implements Runnable {
+        public void run() {
+            try {
+                if (socket != null)
+                    socket.close();
+            } catch (Exception e) {
+
             }
         }
     }
@@ -432,6 +505,10 @@ public class MainActivity extends AppCompatActivity {
 
                                 hideAccess(false);
                                 access = true;
+
+                                if (menuDisconnect != null) {
+                                    menuDisconnect.setVisible(true);
+                                }
 
                             }
                         });
@@ -493,64 +570,333 @@ public class MainActivity extends AppCompatActivity {
         linearLoading.setVisibility(View.VISIBLE);
     }
 
+    private  boolean checkAndRequestPermissions() {
+        int permissionInternet = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.INTERNET);
+        int permissionNetwork = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_NETWORK_STATE);
+        int locationPermission = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION);
+        int locationPermission2 = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION);
+
+        List<String> listPermissionsNeeded = new ArrayList<>();
+        if (locationPermission != PackageManager.PERMISSION_GRANTED) {
+            listPermissionsNeeded.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+        if (permissionNetwork != PackageManager.PERMISSION_GRANTED) {
+            listPermissionsNeeded.add(Manifest.permission.ACCESS_NETWORK_STATE);
+        }
+        if (permissionInternet != PackageManager.PERMISSION_GRANTED) {
+            listPermissionsNeeded.add(Manifest.permission.INTERNET);
+        }
+        if (locationPermission2 != PackageManager.PERMISSION_GRANTED) {
+            listPermissionsNeeded.add(Manifest.permission.ACCESS_COARSE_LOCATION);
+        }
+
+
+        if (!listPermissionsNeeded.isEmpty()) {
+            ActivityCompat.requestPermissions(this, listPermissionsNeeded.toArray(new String[listPermissionsNeeded.size()]),REQUEST_ID_MULTIPLE_PERMISSIONS);
+            return false;
+        }
+        return true;
+    }
+    public static final int REQUEST_ID_MULTIPLE_PERMISSIONS = 1;
+
+    MenuItem menuDisconnect;
+
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        switch (requestCode) {
-            case 111:
-                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    showMenu();
-                    ShowDialog.message(this, "permission is okay!");
-                } else {
-                    showError();
-                }
-                break;
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.action_menu, menu);
 
-        }
+        menuDisconnect = menu.findItem(R.id.disconnect);
+        menuDisconnect.setVisible(false);
+        menuSaveProfile = menu.findItem(R.id.save_profile);
+        menuSaveProfile.setVisible(false);
+
+        return true;
     }
 
-    private void checkPermission() {
-        int MyVersion = Build.VERSION.SDK_INT;
-        //  if (MyVersion > Build.VERSION_CODES.LOLLIPOP_MR1) {
-        //if (!checkIfAlreadyhavePermission()) {
-        requestForSpecificPermission();
-        //}else{
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
 
-        //}
-        //  }
-    }
-
-
-    String data[] = new String[]{
-            Manifest.permission.INTERNET,
-            Manifest.permission.ACCESS_NETWORK_STATE};
-
-    final int REQUEST_STATE = 111;
-
-    private void requestForSpecificPermission() {
-        /*String data [] = new String[]{
-                Manifest.permission.INTERNET,
-                Manifest.permission.RECEIVE_SMS,
-                Manifest.permission.READ_SMS,
-                Manifest.permission.READ_EXTERNAL_STORAGE,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE};
-        */
-        int permissionCheck = ContextCompat.checkSelfPermission(
-                this, Manifest.permission.INTERNET);
-        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.INTERNET)) {
-                ShowDialog.message(this, "Permission Needed");
-            } else {
-                requestPermission(Manifest.permission.INTERNET, REQUEST_STATE);
-            }
+        // when it is connected
+        if (SERVER_IP != null) {
+            menuDisconnect.setVisible(true);
+            menuSaveProfile.setVisible(true);
         } else {
-            showMenu();
+            menuDisconnect.setVisible(false);
+            menuSaveProfile.setVisible(false);
         }
+        super.onPrepareOptionsMenu(menu);
+        return true;
     }
 
-    private void requestPermission(String permissionName, int permissionRequestCode) {
-        ActivityCompat.requestPermissions(this,
-                new String[]{permissionName}, permissionRequestCode);
+    private String STORED_PROFILE;
+
+    private void saveProfile(String name, String anIP) {
+        Gson n = new Gson();
+
+        // save as JSON temporarily
+        TargetProfile tp = new TargetProfile(name, anIP);
+
+
+
+        if (STORED_PROFILE == null) {
+            // creating array
+            tpList = new TargetProfile[1];
+            tpList[0] = tp;
+        } else {
+            // if there is a data
+            // we grab as array
+
+            // create a new one with additional data
+            tpList = createCopy(tpList, tp);
+
+        }
+
+        if (tpList != null) {
+            STORED_PROFILE = n.toJson(tpList);
+            UserData.savePreference(Keys.TARGET_PROFILE, STORED_PROFILE);
+        }
+
+        ShowDialog.message(this, STORED_PROFILE + "Profile saved completely!");
     }
+
+    private TargetProfile[] createCopy(TargetProfile[] tpr, TargetProfile tp1) {
+        TargetProfile[] tpNew = new TargetProfile[tpr.length + 1];
+        int x = 0;
+
+        for (TargetProfile tpSingle : tpr) {
+            tpNew[x] = tpSingle;
+            x++;
+        }
+
+        // last position
+        tpNew[x] = tp1;
+        return tpNew;
+    }
+
+    String profileName;
+    Spinner spn;
+    TargetProfile tpList[];
+
+    private void showDialogChooseProfile() {
+        dialog = new Dialog(this);
+        dialog.setContentView(R.layout.choose_profile);
+
+        Button btnCancel = dialog.findViewById(R.id.dialog_cancel);
+        Button btnOk = dialog.findViewById(R.id.dialog_ok);
+
+        spn = dialog.findViewById(R.id.spinnerProfile);
+
+        ArrayAdapter<String> adapter;
+        List<String> list = new ArrayList<String>();
+
+        Gson g = new Gson();
+        tpList = g.fromJson(STORED_PROFILE, TargetProfile[].class);
+
+        for (TargetProfile tp : tpList) {
+            list.add(tp.getName());
+        }
+
+        adapter = new ArrayAdapter<String>(getApplicationContext(),
+                android.R.layout.simple_spinner_item, list);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spn.setAdapter(adapter);
+
+        btnOk.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                String item = spn.getSelectedItem().toString();
+                loadProfile(item);
+
+                dialog.dismiss();
+            }
+        });
+
+        btnCancel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+            }
+        });
+
+        dialog.setTitle("Choose Profile");
+        dialog.show();
+
+    }
+
+    private void loadProfile(String profileName) {
+        for (TargetProfile tp : tpList) {
+            if (tp.getName().equalsIgnoreCase(profileName)) {
+                editTextRemoteIP.setText(tp.getIp_address());
+                break;
+            }
+        }
+
+        ShowDialog.message(this, "You may connect now!");
+    }
+
+    private void showDialogSaveProfile() {
+
+
+        dialog = new Dialog(this);
+        dialog.setContentView(R.layout.dialog_message);
+
+        Button btnCancel = dialog.findViewById(R.id.dialog_cancel);
+        Button btnOk = dialog.findViewById(R.id.dialog_ok);
+
+        btnOk.setText("Save");
+        edtMessage = dialog.findViewById(R.id.editTextTextPersonName);
+        TextView dialog_info = dialog.findViewById(R.id.dialog_info);
+
+        dialog_info.setText("This " + SERVER_IP + " will be saved as...");
+
+        btnOk.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                profileName = edtMessage.getText().toString();
+                saveProfile(profileName, SERVER_IP);
+                dialog.dismiss();
+            }
+        });
+
+        btnCancel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+            }
+        });
+
+        dialog.setTitle("Save Profile");
+        dialog.show();
+
+    }
+
+    private boolean alreadyInTheProfile(){
+        boolean already = false;
+
+        if(SERVER_IP!=null){
+            for(TargetProfile tp: tpList){
+                if(tp.getIp_address().equalsIgnoreCase(SERVER_IP)){
+                    already = true;
+                    break;
+                }
+            }
+        }
+
+        return already;
+    }
+
+    MenuItem menuSaveProfile;
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.save_profile:
+                // show the dialog message
+                // if the ip address hasn't been stored lately
+                if(!alreadyInTheProfile()){
+                    showDialogSaveProfile();
+                }else{
+                    ShowDialog.message(this, "This ip Address is already saved in the profile!");
+                }
+
+                break;
+            case R.id.contact_admin:
+                new WhatsappSender(this).sendMessageToWhatsAppContact(Keys.ADMIN_NUMBER, "*Admin*\nTolong saya mau tanya!");
+                break;
+            case R.id.disconnect:
+                SERVER_IP = null;
+                editTextRemoteIP.setVisibility(View.VISIBLE);
+                buttonConnect.setVisibility(View.VISIBLE);
+                hideAccess(true);
+                showMessage("- disconnected -");
+
+                menuDisconnect.setVisible(false);
+                new Thread(new ThreadDisconnector()).start();
+                break;
+            case R.id.choose_profile:
+                // load the data from storage locally
+                STORED_PROFILE = UserData.getPreferenceString(Keys.TARGET_PROFILE);
+
+                if (STORED_PROFILE != null) {
+                    showDialogChooseProfile();
+                } else {
+                    ShowDialog.message(this, "No profile available. Connect & save first!");
+                }
+
+                break;
+            case R.id.maps:
+               openTracker();
+                break;
+            default:
+                break;
+        }
+
+        return true;
+    }
+
+    private void openTracker(){
+        Intent i = new Intent(this, TrackerMapActivity.class);
+        startActivity(i);
+        finish();
+    }
+
+    final int PERMISSION_ALL = 1;
+    String[] PERMISSIONS = {
+            android.Manifest.permission.INTERNET,
+            android.Manifest.permission.READ_EXTERNAL_STORAGE,
+            android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            android.Manifest.permission.ACCESS_NETWORK_STATE
+    };
+
+
+
+    private boolean gotPermission(){
+        return hasPermissions(this, PERMISSIONS);
+    }
+
+    int WAITING_TIME = 2000;
+    Handler handler = new Handler();
+
+    private void proceed(){
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if(gotPermission()){
+                    openTracker();
+                }else{
+                    finish();
+                }
+            }
+        }, WAITING_TIME);
+    }
+
+    private void requestPermission(){
+
+        if (!gotPermission()) {
+            ActivityCompat.requestPermissions(this, PERMISSIONS, PERMISSION_ALL);
+        }else{
+            proceed();
+        }
+
+
+    }
+
+    public static boolean hasPermissions(Context context, String... permissions) {
+        if (context != null && permissions != null) {
+            for (String permission : permissions) {
+                if (ActivityCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
 
 }

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/disconnect"
+        android:title="Disconnect..." >
+    </item>
+    <item
+        android:id="@+id/choose_profile"
+        android:title="Choose Profile" >
+    </item>
+    <item
+        android:id="@+id/save_profile"
+        android:title="Save Profile" >
+    </item>
+    <item
+        android:id="@+id/maps"
+        android:title="Tracker" >
+    </item>
+    <item
+        android:id="@+id/contact_admin"
+        android:title="Help!" >
+    </item>
+</menu>
