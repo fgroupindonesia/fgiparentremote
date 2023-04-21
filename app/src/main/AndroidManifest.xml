@@ -2,10 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.fgroupindonesia.fgiparentremote">
 
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:allowBackup="true"
@@ -19,15 +19,16 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyCVKf72OGNLLKbSPNXlo9QE7Q63hScAbzk" />
 
-        <activity android:name=".TrackerMapActivity"></activity>
+        <activity android:name=".TrackerMapActivity" />
+        <activity android:name=".ScanLocallyActivity" />
+        <activity android:name=".MainActivity"/>
         <activity
-            android:name=".MainActivity"
+            android:name=".HelloActivity"
             android:label="@string/app_name"
             android:noHistory="true"
             android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

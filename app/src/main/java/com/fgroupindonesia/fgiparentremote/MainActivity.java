@@ -1,21 +1,463 @@
 package com.fgroupindonesia.fgiparentremote;
 
+import android.Manifest;
+import android.app.Dialog;
+import android.content.pm.PackageManager;
+import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.WindowManager;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.ProgressBar;
+import android.widget.SeekBar;
+import android.widget.TableLayout;
+import android.widget.TextView;
+
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.gson.Gson;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import bean.Entry;
+import bean.TargetProfile;
+import helper.Keys;
+import helper.ShowDialog;
+import helper.UserData;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+public class MainActivity extends AppCompatActivity {
+
+    Button buttonConnect;
+    TextView textViewMessage, textViewMute, textViewInfo;
+    ImageView imageViewMessage;
+    EditText editTextRemoteIP;
+    SeekBar seekBarVolume;
+    EditText edtMessage;
+
+    int currentVol = 0;
+    boolean access = false;
+    public String SERVER_IP = null;
+    public final int SERVER_PORT = 2004;
+    public static final int REQUEST_ID_MULTIPLE_PERMISSIONS = 1;
+
+    String dataMessage = null;
+    String temp;
+    private String STORED_PROFILE;
+
+    LinearLayout linearAudio, linearMessage, linearLoading, linearError, linearMenu;
+    TableLayout tableLayout;
+    ImageView imageViewAudio;
+    TargetProfile tpList[];
+    ListView lstAppName;
+    LinearLayout linearButtonKillApp;
+    ArrayList<String> listAppNames = new ArrayList<String>();
+    Dialog dialog;
+
+    ProgressBar progressBarLoadingApp;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        // centerTitle();
+        // needHide();
+
+        // for later usage
+        UserData.setPreference(this);
+
+        // for storing profile later
+        loadStoredProfileData();
+
+        //buttonConnect = (Button) findViewById(R.id.buttonConnect);
+        tableLayout = (TableLayout) findViewById(R.id.tableLayout);
+
+        imageViewMessage = (ImageView) findViewById(R.id.imageViewMessage);
+
+        //editTextRemoteIP = (EditText) findViewById(R.id.editTextRemoteIP);
+
+        linearLoading = (LinearLayout) findViewById(R.id.linearLoading);
+        linearError = (LinearLayout) findViewById(R.id.linearError);
+        linearMenu = (LinearLayout) findViewById(R.id.linearMenu);
+        linearAudio = (LinearLayout) findViewById(R.id.linearAudio);
+        linearMessage = (LinearLayout) findViewById(R.id.linearMessage);
+
+       // textViewInfo = (TextView) findViewById(R.id.textViewInfo);
+        textViewMute = (TextView) findViewById(R.id.textViewMute);
+        // this is the text below the picture (message menu)
+        textViewMessage = (TextView) findViewById(R.id.textViewMessage);
+
+        imageViewAudio = (ImageView) findViewById(R.id.imageViewAudio);
+
+        seekBarVolume = (SeekBar) findViewById(R.id.seekBarVolume);
+        seekBarVolume.setProgress(0);
+        seekBarVolume.setEnabled(false);
+
+        // set the onchangelistener
+        applyOnChangedListener(seekBarVolume);
+
+        // keep it awake
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        hideAccess(true);
+        // showLayout(MODE_LAYOUT_LOADING);
+        // showLoading();
+
+        //UserData.savePreference(Keys.TARGET_PROFILE, null);
+        checkAndRequestPermissions();
+    }
+
+    private void showAddMessageLayout() {
+        linearMessage.setTag("add");
+        imageViewMessage.setImageResource(R.drawable.message_add);
+        textViewMessage.setText(R.string.label_menu_message);
+    }
+
+    private void deleteMessage(View v) {
+        String x = createEntryAsJSONString("message_delete", null);
+        showAddMessageLayout();
+        //new Thread(new ThreadSender(x)).start();
+    }
+
+    private void sendMessage(View vLinear, String pesan) {
+        String x = createEntryAsJSONString("message_add", pesan);
+        showDeleteMessageLayout();
+        //new Thread(new ThreadSender(x)).start();
+    }
+
+    public void showMessageInput(final View linearLayoutView) {
+        dialog = new Dialog(this);
+        dialog.setContentView(R.layout.dialog_message);
+
+        Button btnCancel = dialog.findViewById(R.id.dialog_cancel);
+        Button btnOk = dialog.findViewById(R.id.dialog_ok);
+        edtMessage = dialog.findViewById(R.id.editTextTextPersonName);
+
+        btnOk.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dataMessage = edtMessage.getText().toString();
+                sendMessage(linearLayoutView, dataMessage);
+                dialog.dismiss();
+            }
+        });
+
+        btnCancel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+            }
+        });
+
+        dialog.setTitle(R.string.label_menu_message);
+        dialog.show();
+    }
+
+    public void restartPc(View v) {
+        if (access) {
+            String x = createEntryAsJSONString("restart_pc", null);
+            //new Thread(new ThreadSender(x)).start();
+            hideAccess(true);
+        } else {
+            ShowDialog.message(this, "connect first!");
+        }
+
+    }
+
+    public void killApp(String filename) {
+        if (access) {
+            String x = createEntryAsJSONString("kill_app", filename);
+           // new Thread(new ThreadSender(x)).start();
+            //hideAccess(true);
+        } else {
+            ShowDialog.message(this, "connect first!");
+        }
+
+    }
+
+    public void showListingApp() {
+        listAppNames.clear();
+
+        dialog = new Dialog(this);
+        dialog.setContentView(R.layout.choose_app);
+
+        Button btnCancel = dialog.findViewById(R.id.buttonCancel);
+        Button btnOk = dialog.findViewById(R.id.buttonKill);
+        lstAppName = dialog.findViewById(R.id.listViewAppName);
+        lstAppName.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
+
+        linearButtonKillApp = (LinearLayout) dialog.findViewById(R.id.linearButtonKillApp);
+
+        progressBarLoadingApp = dialog.findViewById(R.id.progressBarLoadingApp);
+
+        ArrayAdapter <String> adapter = new ArrayAdapter<String>(this,
+                android.R.layout.simple_list_item_1,
+                listAppNames);
+        lstAppName.setAdapter(adapter);
+
+        lstAppName.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                temp = lstAppName.getItemAtPosition(position).toString();
+            }
+        });
+
+        btnOk.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ShowDialog.message(MainActivity.this, "app target killed was " + temp);
+                killApp(temp);
+                dialog.dismiss();
+            }
+        });
+
+        btnCancel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+            }
+        });
+
+        dialog.setTitle(R.string.label_menu_message);
+        dialog.show();
+    }
+
+    public void listApp(View v) {
+        if (access) {
+            String x = createEntryAsJSONString("list_app", null);
+           // new Thread(new ThreadSender(x)).start();
+            hideAccess(true);
+            showListingApp();
+        } else {
+            ShowDialog.message(this, "connect first!");
+        }
+    }
+
+    public void shutdownPc(View v) {
+        if (access) {
+            String x = createEntryAsJSONString("shutdown_pc", null);
+            //new Thread(new ThreadSender(x)).start();
+            hideAccess(true);
+        } else {
+            ShowDialog.message(this, "connect first!");
+        }
+
+    }
+
+    public void muteAudio(View v) {
+        if (access) {
+
+            if (v.getTag().toString().equalsIgnoreCase("mute")) {
+                String x = createEntryAsJSONString("mute_audio", null);
+               // new Thread(new ThreadSender(x)).start();
+                v.setTag("unmute");
+                imageViewAudio.setImageResource(R.drawable.unmute);
+                textViewMute.setText("Unmute Audio");
+
+                seekBarVolume.setProgress(0);
+            } else {
+                String x = createEntryAsJSONString("unmute_audio", null);
+                //new Thread(new ThreadSender(x)).start();
+                v.setTag("mute");
+                imageViewAudio.setImageResource(R.drawable.mute);
+                textViewMute.setText("Mute Audio");
+
+                seekBarVolume.setProgress(100);
+            }
+
+        } else {
+            ShowDialog.message(this, "connect first!");
+        }
+
+    }
+
+    private void loadStoredProfileData() {
+        STORED_PROFILE = UserData.getPreferenceString(Keys.TARGET_PROFILE);
+        tpList = new Gson().fromJson(STORED_PROFILE, TargetProfile[].class);
+    }
+
+    private void hideAccess(boolean b) {
+        if (b) {
+            tableLayout.setAlpha(0.4f);
+            buttonConnect.setVisibility(View.VISIBLE);
+
+        } else {
+            tableLayout.setAlpha(1f);
+            buttonConnect.setVisibility(View.INVISIBLE);
+
+        }
+    }
+
+    private String createEntryAsJSONString(String command, String data) {
+        Entry en = new Entry();
+        en.setCommand(command);
+        en.setData(data);
+        String jsonInString = new Gson().toJson(en);
+        return jsonInString;
+    }
+
+
+    final int MODE_LAYOUT_ERROR = 1, MODE_LAYOUT_LOADING = 0, MODE_LAYOUT_MENU = 2;
+
+    private boolean checkAndRequestPermissions() {
+        int permissionInternet = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.INTERNET);
+        int permissionNetwork = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_NETWORK_STATE);
+        int locationPermission = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION);
+        int locationPermission2 = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION);
+
+        List<String> listPermissionsNeeded = new ArrayList<>();
+        if (locationPermission != PackageManager.PERMISSION_GRANTED) {
+            listPermissionsNeeded.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+        if (permissionNetwork != PackageManager.PERMISSION_GRANTED) {
+            listPermissionsNeeded.add(Manifest.permission.ACCESS_NETWORK_STATE);
+        }
+        if (permissionInternet != PackageManager.PERMISSION_GRANTED) {
+            listPermissionsNeeded.add(Manifest.permission.INTERNET);
+        }
+        if (locationPermission2 != PackageManager.PERMISSION_GRANTED) {
+            listPermissionsNeeded.add(Manifest.permission.ACCESS_COARSE_LOCATION);
+        }
+
+
+        if (!listPermissionsNeeded.isEmpty()) {
+            ActivityCompat.requestPermissions(this, listPermissionsNeeded.toArray(new String[listPermissionsNeeded.size()]), REQUEST_ID_MULTIPLE_PERMISSIONS);
+            return false;
+        }
+        return true;
+    }
+
+    private void showDeleteMessageLayout() {
+        linearMessage.setTag("delete");
+        imageViewMessage.setImageResource(R.drawable.message_delete);
+        textViewMessage.setText(R.string.label_menu_clear_message);
+    }
+
+    private void applyOnChangedListener(SeekBar skb) {
+        skb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                currentVol = progress;
+                textViewInfo.setText("Volume : " + currentVol);
+
+                if (currentVol == 0) {
+                    linearAudio.setTag("unmute");
+                    imageViewAudio.setImageResource(R.drawable.unmute);
+                    textViewMute.setText("Unmute Audio");
+                } else if (currentVol >= 10) {
+                    linearAudio.setTag("mute");
+                    imageViewAudio.setImageResource(R.drawable.mute);
+                    textViewMute.setText("Mute Audio");
+                }
+
+                String x = createEntryAsJSONString("sound_mix", String.valueOf(currentVol));
+                //new Thread(new ThreadSender(x)).start();
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
+    }
+
+    public void aboutApp(View v) {
+        try {
+            String versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            ShowDialog.message(this, "FGI Parent Control Remote v" + versionName + " -Android-");
+        } catch (Exception ex){
+
+        }
+    }
+
+    public void showLocation(View v) {
+
+    }
+
+    MenuItem menuDisconnect;
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.action_menu, menu);
+
+       // menuDisconnect = menu.findItem(R.id.disconnect);
+        //menuDisconnect.setVisible(false);
+        //menuSaveProfile = menu.findItem(R.id.save_profile);
+        //menuSaveProfile.setVisible(false);
+
+        return true;
+    }
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+
+        // when it is connected
+        if (SERVER_IP != null) {
+            menuDisconnect.setVisible(true);
+            //menuSaveProfile.setVisible(true);
+        } else {
+            menuDisconnect.setVisible(false);
+            //menuSaveProfile.setVisible(false);
+        }
+        super.onPrepareOptionsMenu(menu);
+        return true;
+    }
+
+    public void message(View v) {
+        if (access) {
+            String x = null;
+            if (v.getTag().toString().contains("add")) {
+                showMessageInput(v);
+
+            } else {
+                deleteMessage(v);
+            }
+
+
+            //hideAccess(true);
+        } else {
+            ShowDialog.message(this, "connect first!");
+        }
+
+    }
+
+}
+
+
+/*
 import android.Manifest;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -28,6 +470,10 @@ import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TableLayout;
 import android.widget.TextView;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.google.gson.Gson;
 
@@ -59,7 +505,7 @@ public class MainActivity extends AppCompatActivity {
     public String SERVER_IP = null;
     public final int SERVER_PORT = 2004;
 
-    LinearLayout linearAudio;
+    LinearLayout linearAudio, linearMessage;
 
     TableLayout tableLayout;
 
@@ -69,9 +515,11 @@ public class MainActivity extends AppCompatActivity {
         if (b) {
             tableLayout.setAlpha(0.4f);
             buttonConnect.setVisibility(View.VISIBLE);
+
         } else {
             tableLayout.setAlpha(1f);
             buttonConnect.setVisibility(View.INVISIBLE);
+
         }
     }
 
@@ -82,27 +530,30 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void loadStoredProfileData(){
+    private void loadStoredProfileData() {
         STORED_PROFILE = UserData.getPreferenceString(Keys.TARGET_PROFILE);
         tpList = new Gson().fromJson(STORED_PROFILE, TargetProfile[].class);
     }
 
-    private void applyOnChangedListener(SeekBar skb){
+    private void applyOnChangedListener(SeekBar skb) {
         skb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 currentVol = progress;
                 textViewInfo.setText("Volume : " + currentVol);
 
-                if(currentVol==0){
+                if (currentVol == 0) {
                     linearAudio.setTag("unmute");
                     imageViewAudio.setImageResource(R.drawable.unmute);
                     textViewMute.setText("Unmute Audio");
-                }else if(currentVol == 100){
+                } else if (currentVol >= 10) {
                     linearAudio.setTag("mute");
                     imageViewAudio.setImageResource(R.drawable.mute);
                     textViewMute.setText("Mute Audio");
                 }
+
+                String x = createEntryAsJSONString("sound_mix", String.valueOf(currentVol));
+                new Thread(new ThreadSender(x)).start();
 
             }
 
@@ -126,7 +577,6 @@ public class MainActivity extends AppCompatActivity {
         //needHide();
 
 
-
         // for later usage
         UserData.setPreference(this);
 
@@ -135,7 +585,6 @@ public class MainActivity extends AppCompatActivity {
 
         buttonConnect = (Button) findViewById(R.id.buttonConnect);
         tableLayout = (TableLayout) findViewById(R.id.tableLayout);
-        hideAccess(true);
 
         imageViewMessage = (ImageView) findViewById(R.id.imageViewMessage);
 
@@ -145,6 +594,7 @@ public class MainActivity extends AppCompatActivity {
         linearError = (LinearLayout) findViewById(R.id.linearError);
         linearMenu = (LinearLayout) findViewById(R.id.linearMenu);
         linearAudio = (LinearLayout) findViewById(R.id.linearAudio);
+        linearMessage = (LinearLayout) findViewById(R.id.linearMessage);
 
         textViewInfo = (TextView) findViewById(R.id.textViewInfo);
         textViewMute = (TextView) findViewById(R.id.textViewMute);
@@ -155,13 +605,17 @@ public class MainActivity extends AppCompatActivity {
 
         seekBarVolume = (SeekBar) findViewById(R.id.seekBarVolume);
         seekBarVolume.setProgress(0);
+        seekBarVolume.setEnabled(false);
 
         // set the onchangelistener
         applyOnChangedListener(seekBarVolume);
 
-        showLoading();
+        // keep it awake
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-
+        hideAccess(true);
+       // showLayout(MODE_LAYOUT_LOADING);
+        // showLoading();
 
         //UserData.savePreference(Keys.TARGET_PROFILE, null);
         checkAndRequestPermissions();
@@ -169,21 +623,29 @@ public class MainActivity extends AppCompatActivity {
 
     public void startConnecting(View v) {
 
-        if (SERVER_IP != null) {
-            ShowDialog.message(this, "resuming..." + SERVER_IP);
-        }
+        hideAccess(true);
+       // showLayout(MODE_LAYOUT_LOADING);
 
-        if (editTextRemoteIP.getText().toString().length() > 0) {
+        if (SERVER_IP != null) {
+
+           // ShowDialog.message(this, "resuming..." + SERVER_IP);
+            new Thread(new ThreadConnector()).start();
+        } else if (editTextRemoteIP.getText().toString().length() > 0) {
+            showLayout(MODE_LAYOUT_MENU);
+
             SERVER_IP = editTextRemoteIP.getText().toString();
             // save locally
             UserData.savePreference(Keys.IP_ADDRESS, SERVER_IP);
 
             new Thread(new ThreadConnector()).start();
         } else {
+
+            showLayout(MODE_LAYOUT_MENU);
             ShowDialog.message(this, "Please input the valid IP Address first for connecting remote.");
         }
 
     }
+
 
     private String createEntryAsJSONString(String command, String data) {
         Entry en = new Entry();
@@ -216,7 +678,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void aboutApp(View v) {
-        ShowDialog.message(this, "FGI Parent Control Remote v1.0 -Android-");
+        try {
+            String versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            ShowDialog.message(this, "FGI Parent Control Remote v" + versionName + " -Android-");
+        } catch (Exception ex){
+
+        }
     }
 
     public void killApp(String filename) {
@@ -239,12 +706,16 @@ public class MainActivity extends AppCompatActivity {
                 v.setTag("unmute");
                 imageViewAudio.setImageResource(R.drawable.unmute);
                 textViewMute.setText("Unmute Audio");
+
+                seekBarVolume.setProgress(0);
             } else {
                 String x = createEntryAsJSONString("unmute_audio", null);
                 new Thread(new ThreadSender(x)).start();
                 v.setTag("mute");
                 imageViewAudio.setImageResource(R.drawable.mute);
                 textViewMute.setText("Mute Audio");
+
+                seekBarVolume.setProgress(100);
             }
 
         } else {
@@ -293,13 +764,12 @@ public class MainActivity extends AppCompatActivity {
 
         if (SERVER_IP != null) {
             editTextRemoteIP.setText(SERVER_IP);
+            startConnecting(null);
+
         } else {
             editTextRemoteIP.setText("");
             editTextRemoteIP.setVisibility(View.VISIBLE);
         }
-
-
-        startConnecting(null);
 
         super.onResume();
     }
@@ -383,19 +853,27 @@ public class MainActivity extends AppCompatActivity {
         progressBarLoadingApp.setVisibility(View.INVISIBLE);
     }
 
-    private void sendMessage(View vLinear, String pesan) {
-        String x = createEntryAsJSONString("message_add", pesan);
-        vLinear.setTag("delete");
+    private void showDeleteMessageLayout() {
+        linearMessage.setTag("delete");
         imageViewMessage.setImageResource(R.drawable.message_delete);
         textViewMessage.setText(R.string.label_menu_clear_message);
+    }
+
+    private void showAddMessageLayout() {
+        linearMessage.setTag("add");
+        imageViewMessage.setImageResource(R.drawable.message_add);
+        textViewMessage.setText(R.string.label_menu_message);
+    }
+
+    private void sendMessage(View vLinear, String pesan) {
+        String x = createEntryAsJSONString("message_add", pesan);
+        showDeleteMessageLayout();
         new Thread(new ThreadSender(x)).start();
     }
 
     private void deleteMessage(View v) {
         String x = createEntryAsJSONString("message_delete", null);
-        v.setTag("add");
-        imageViewMessage.setImageResource(R.drawable.message_add);
-        textViewMessage.setText(R.string.label_menu_message);
+        showAddMessageLayout();
         new Thread(new ThreadSender(x)).start();
     }
 
@@ -440,9 +918,16 @@ public class MainActivity extends AppCompatActivity {
         public void run() {
 
             try {
+                if(socket!=null) {
+                    input.close();
+                    output.close();
+                    socket.close();
+                }
+
                 socket = new Socket(SERVER_IP, SERVER_PORT);
                 output = new PrintWriter(socket.getOutputStream(), true);
                 input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
 
                 runOnUiThread(new Runnable() {
                     @Override
@@ -481,29 +966,65 @@ public class MainActivity extends AppCompatActivity {
 
     String msgReceived;
     boolean access = false;
+    Reply dataCome;
+    boolean working = true;
 
     class ThreadReceiver implements Runnable {
+        String stat;
+
         @Override
         public void run() {
-            while (true) {
+            while (working) {
                 try {
+                  //  ShowDialog.message(MainActivity.this, "we tried wait for reading... ");
+
                     msgReceived = input.readLine();
-                    final Reply dataCome = new Gson().fromJson(msgReceived, Reply.class);
+
+                  //  ShowDialog.message(MainActivity.this, "we got " + msgReceived);
+
+                    // received a reply from server
+                    dataCome = new Gson().fromJson(msgReceived, Reply.class);
+
                     if (msgReceived != null) {
+
+                        hideAccess(false);
+                        showLayout(MODE_LAYOUT_MENU);
+
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                if (dataCome.getStatus().equalsIgnoreCase("success") ||
-                                        dataCome.getStatus().equalsIgnoreCase("okay")) {
+                                stat = dataCome.getStatus();
+                                if (stat.equalsIgnoreCase("success") ||
+                                        stat.equalsIgnoreCase("okay")) {
                                     showMessage("server: " + msgReceived);
 
-                                } else {
+                                    seekBarVolume.setEnabled(true);
+
+                                } else if (stat.equalsIgnoreCase("private")) {
 
                                     //ShowDialog.message(MainActivity.this, dataCome.getData());
                                     extractAppNameData(dataCome);
+                                } else if (stat.equalsIgnoreCase("pending")) {
+                                    // read as array for the status obtained
+                                    ShowDialog.message(MainActivity.this, "we got pending one...");
+                                    Entry dataList[] = new Gson().fromJson(dataCome.getData(), Entry[].class);
+                                    // there is a previous task recorded here
+                                    String cmd;
+                                    for (Entry e : dataList) {
+                                        cmd = e.getCommand();
+                                        if (cmd.equalsIgnoreCase("message")) {
+                                            // we toggle the message button
+
+                                            showDeleteMessageLayout();
+
+                                        } else if (cmd.equalsIgnoreCase("sound_mix")) {
+                                            // we set the volume bar
+                                            seekBarVolume.setProgress(Integer.parseInt(e.getData()));
+                                        }
+                                    }
                                 }
 
-                                hideAccess(false);
+
                                 access = true;
 
                                 if (menuDisconnect != null) {
@@ -513,15 +1034,18 @@ public class MainActivity extends AppCompatActivity {
                             }
                         });
                     } else {
+                        ShowDialog.message(MainActivity.this, "escaped");
                         break;
                         //new Thread(new ThreadConnector()).start();
                         //return;
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
+                    ShowDialog.message(MainActivity.this, e.getMessage());
+                    working = false;
                     // session closed
-                    buttonConnect.setVisibility(View.VISIBLE);
-                    editTextRemoteIP.setVisibility(View.VISIBLE);
+                   // buttonConnect.setVisibility(View.VISIBLE);
+                  //  editTextRemoteIP.setVisibility(View.VISIBLE);
                 }
             }
         }
@@ -551,26 +1075,25 @@ public class MainActivity extends AppCompatActivity {
 
     LinearLayout linearMenu, linearLoading, linearError;
 
-    private void showMenu() {
-        linearError.setVisibility(View.GONE);
-        linearMenu.setVisibility(View.VISIBLE);
-        linearLoading.setVisibility(View.GONE);
+    private void showLayout(int modeNa) {
+        if (modeNa == MODE_LAYOUT_ERROR) {
+            linearError.setVisibility(View.VISIBLE);
+            linearMenu.setVisibility(View.GONE);
+            linearLoading.setVisibility(View.GONE);
+        } else if (modeNa == MODE_LAYOUT_LOADING) {
+            linearError.setVisibility(View.GONE);
+            linearMenu.setVisibility(View.GONE);
+            linearLoading.setVisibility(View.VISIBLE);
+        }else if(modeNa == MODE_LAYOUT_MENU){
+            linearError.setVisibility(View.GONE);
+            linearMenu.setVisibility(View.VISIBLE);
+            linearLoading.setVisibility(View.GONE);
+        }
     }
 
+    final int MODE_LAYOUT_ERROR = 1, MODE_LAYOUT_LOADING = 0, MODE_LAYOUT_MENU = 2;
 
-    private void showError() {
-        linearError.setVisibility(View.VISIBLE);
-        linearMenu.setVisibility(View.GONE);
-        linearLoading.setVisibility(View.GONE);
-    }
-
-    private void showLoading() {
-        linearError.setVisibility(View.GONE);
-        linearMenu.setVisibility(View.GONE);
-        linearLoading.setVisibility(View.VISIBLE);
-    }
-
-    private  boolean checkAndRequestPermissions() {
+    private boolean checkAndRequestPermissions() {
         int permissionInternet = ContextCompat.checkSelfPermission(this,
                 Manifest.permission.INTERNET);
         int permissionNetwork = ContextCompat.checkSelfPermission(this,
@@ -596,11 +1119,12 @@ public class MainActivity extends AppCompatActivity {
 
 
         if (!listPermissionsNeeded.isEmpty()) {
-            ActivityCompat.requestPermissions(this, listPermissionsNeeded.toArray(new String[listPermissionsNeeded.size()]),REQUEST_ID_MULTIPLE_PERMISSIONS);
+            ActivityCompat.requestPermissions(this, listPermissionsNeeded.toArray(new String[listPermissionsNeeded.size()]), REQUEST_ID_MULTIPLE_PERMISSIONS);
             return false;
         }
         return true;
     }
+
     public static final int REQUEST_ID_MULTIPLE_PERMISSIONS = 1;
 
     MenuItem menuDisconnect;
@@ -640,7 +1164,6 @@ public class MainActivity extends AppCompatActivity {
 
         // save as JSON temporarily
         TargetProfile tp = new TargetProfile(name, anIP);
-
 
 
         if (STORED_PROFILE == null) {
@@ -776,12 +1299,12 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private boolean alreadyInTheProfile(){
+    private boolean alreadyInTheProfile() {
         boolean already = false;
 
-        if(SERVER_IP!=null){
-            for(TargetProfile tp: tpList){
-                if(tp.getIp_address().equalsIgnoreCase(SERVER_IP)){
+        if (SERVER_IP != null) {
+            for (TargetProfile tp : tpList) {
+                if (tp.getIp_address().equalsIgnoreCase(SERVER_IP)) {
                     already = true;
                     break;
                 }
@@ -796,12 +1319,15 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
+            case R.id.scanlocal:
+                openScanner();
+                break;
             case R.id.save_profile:
                 // show the dialog message
                 // if the ip address hasn't been stored lately
-                if(!alreadyInTheProfile()){
+                if (!alreadyInTheProfile()) {
                     showDialogSaveProfile();
-                }else{
+                } else {
                     ShowDialog.message(this, "This ip Address is already saved in the profile!");
                 }
 
@@ -813,6 +1339,10 @@ public class MainActivity extends AppCompatActivity {
                 SERVER_IP = null;
                 editTextRemoteIP.setVisibility(View.VISIBLE);
                 buttonConnect.setVisibility(View.VISIBLE);
+
+                // we store it
+                UserData.savePreference(Keys.IP_ADDRESS, SERVER_IP);
+
                 hideAccess(true);
                 showMessage("- disconnected -");
 
@@ -831,7 +1361,7 @@ public class MainActivity extends AppCompatActivity {
 
                 break;
             case R.id.maps:
-               openTracker();
+                openTracker();
                 break;
             default:
                 break;
@@ -840,7 +1370,13 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
-    private void openTracker(){
+    private void openScanner() {
+        Intent i = new Intent(this, ScanLocallyActivity.class);
+        startActivity(i);
+        //finish();
+    }
+
+    private void openTracker() {
         Intent i = new Intent(this, TrackerMapActivity.class);
         startActivity(i);
         finish();
@@ -855,32 +1391,31 @@ public class MainActivity extends AppCompatActivity {
     };
 
 
-
-    private boolean gotPermission(){
+    private boolean gotPermission() {
         return hasPermissions(this, PERMISSIONS);
     }
 
     int WAITING_TIME = 2000;
     Handler handler = new Handler();
 
-    private void proceed(){
+    private void proceed() {
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                if(gotPermission()){
+                if (gotPermission()) {
                     openTracker();
-                }else{
+                } else {
                     finish();
                 }
             }
         }, WAITING_TIME);
     }
 
-    private void requestPermission(){
+    private void requestPermission() {
 
         if (!gotPermission()) {
             ActivityCompat.requestPermissions(this, PERMISSIONS, PERMISSION_ALL);
-        }else{
+        } else {
             proceed();
         }
 
@@ -899,4 +1434,4 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-}
+}*/

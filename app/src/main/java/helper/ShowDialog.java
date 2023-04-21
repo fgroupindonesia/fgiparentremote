@@ -3,13 +3,12 @@ package helper;
 import android.app.Activity;
 import android.widget.Toast;
 
-
 public class ShowDialog {
 
     private static Activity myAct;
     private static String pesan;
 
-    private static void clearUp(){
+    private static void clearUp() {
         if(myAct!=null){
             myAct = null;
         }

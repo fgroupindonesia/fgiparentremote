@@ -1,6 +1,7 @@
 package helper;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
@@ -68,7 +69,7 @@ public class GpsTracker extends Service implements LocationListener {
                     if (ActivityCompat.checkSelfPermission(mContext, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(mContext, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                         ActivityCompat.requestPermissions((Activity) mContext, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 101);
                     }
-                    locationManager.requestLocationUpdates(
+                  /*  locationManager.requestLocationUpdates(
                             LocationManager.NETWORK_PROVIDER,
                             MIN_TIME_BW_UPDATES,
                             MIN_DISTANCE_CHANGE_FOR_UPDATES, this);
@@ -82,7 +83,7 @@ public class GpsTracker extends Service implements LocationListener {
                             latitude = location.getLatitude();
                             longitude = location.getLongitude();
                         }
-                    }
+                    }*/
                 }
 
                 // if GPS Enabled get lat/long using GPS Services
@@ -92,7 +93,7 @@ public class GpsTracker extends Service implements LocationListener {
                         if (ActivityCompat.checkSelfPermission(mContext, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(mContext, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                             ActivityCompat.requestPermissions((Activity) mContext, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 101);
                         }
-                        locationManager.requestLocationUpdates(
+                      /* locationManager.requestLocationUpdates(
                                 LocationManager.GPS_PROVIDER,
                                 MIN_TIME_BW_UPDATES,
                                 MIN_DISTANCE_CHANGE_FOR_UPDATES, this);
@@ -106,7 +107,7 @@ public class GpsTracker extends Service implements LocationListener {
                                 latitude = location.getLatitude();
                                 longitude = location.getLongitude();
                             }
-                        }
+                        }*/
                     }
                 }
             }
@@ -123,6 +124,7 @@ public class GpsTracker extends Service implements LocationListener {
      * Calling this function will stop using GPS in your app
      * */
 
+    @SuppressLint("MissingPermission")
     public void stopUsingGPS(){
         if(locationManager != null){
             locationManager.removeUpdates(GpsTracker.this);

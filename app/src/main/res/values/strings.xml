@@ -9,9 +9,22 @@
     <string name="label_remote_ip_address">Remote Ip Address</string>
     <string name="label_menu_restart">Restart PC</string>
     <string name="label_menu_kill">Kill app</string>
+    <string name="label_menu_location">Location</string>
     <string name="label_text_status">Status: -</string>
     <string name="label_button_connect">Connect</string>
     <string name="label_text_tulislah_pesan">Write text to be shown :</string>
     <string name="label_text_choose_profile">Choose 1 profile :</string>
     <string name="label_text_type_here">Type here...</string>
+    <string name="label_text_type_fullname">Fullname</string>
+    <string name="label_text_type_email">yourvalid@email.com</string>
+    <string name="label_text_type_whatsapp">Whatsapp Number</string>
+    <string name="label_button_ready">Ready!</string>
+    <string name="label_toggle_mode">Mode : Local</string>
+    <string name="label_uuid">UUID : xxxx</string>
+    <string name="label_register_first">Register First</string>
+    <string name="label_add_client">Add Client</string>
+    <string name="label_purchase_premium"><u>Purchase Premium Access</u></string>
+    <string name="label_button_save">Save</string>
+    <string name="label_text_yeah_pcc">Yeah, Parent Remote Control is coming!</string>
+    <string name="label_text_ok_fill">Okay, let\'s fillin the form first...!</string>
 </resources>

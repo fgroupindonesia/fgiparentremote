@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_vertical"
+    android:orientation="vertical"
+    tools:context=".HelloActivity">
+
+    <LinearLayout
+        android:id="@+id/linearSecond"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+
+        <pl.droidsonroids.gif.GifImageView
+            android:id="@+id/gifAnimatedWaiting"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:src="@drawable/onion_waiting" />
+
+        <pl.droidsonroids.gif.GifImageView
+            android:id="@+id/gifAnimatedWaitingFinal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:src="@drawable/onion_drink"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/textViewMessage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="@string/label_text_ok_fill"
+            android:textAlignment="center" />
+
+        <EditText
+            android:id="@+id/editTextFullname"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ems="10"
+            android:hint="@string/label_text_type_fullname"
+            android:inputType="textPersonName"
+            android:paddingLeft="30dp"
+            android:paddingRight="30dp" />
+
+        <EditText
+            android:id="@+id/editTextEmail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ems="10"
+            android:hint="@string/label_text_type_email"
+            android:inputType="textEmailAddress"
+            android:paddingLeft="30dp"
+            android:paddingRight="30dp" />
+
+        <EditText
+            android:id="@+id/editTextWhatsapp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ems="10"
+            android:hint="@string/label_text_type_whatsapp"
+            android:inputType="textPersonName"
+            android:paddingLeft="30dp"
+            android:paddingRight="30dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/textviewUUID"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_gravity="center"
+                android:layout_margin="20dp"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:text="@string/label_uuid" />
+
+            <Button
+                android:id="@+id/buttonSave"
+                android:layout_width="200dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_margin="15dp"
+                android:onClick="saveForm"
+                android:text="@string/label_button_save" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/linearFirst"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <pl.droidsonroids.gif.GifImageView
+            android:id="@+id/gifImageView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:src="@drawable/onion" />
+
+        <TextView
+            android:id="@+id/textView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="20dp"
+            android:text="@string/label_text_yeah_pcc"
+            android:textAlignment="center" />
+
+        <Button
+            android:id="@+id/buttonReady"
+            android:layout_width="200dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:onClick="readyProceed"
+            android:text="@string/label_button_ready" />
+
+    </LinearLayout>
+
+</LinearLayout>

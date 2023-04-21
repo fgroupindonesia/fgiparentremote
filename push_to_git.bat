@@ -1,5 +1,5 @@
 git add .
-git commit -m "Adding Map Tracker with a public Key API from GoogleMaps Javascript mode."
+git commit -m "New UI after adaptation of Global Mode Feature."
 git push origin main
 git gc --prune
 git pull
