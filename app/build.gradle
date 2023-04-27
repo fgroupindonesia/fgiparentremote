@@ -1,6 +1,11 @@
 apply plugin: 'com.android.application'
 
 android {
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
     signingConfigs {
         /*
         debug {
@@ -24,7 +29,7 @@ android {
 
     defaultConfig {
         applicationId "com.fgroupindonesia.fgiparentremote"
-        minSdkVersion 19
+        minSdkVersion 24
         targetSdkVersion 30
         versionCode 5
         versionName "1.4"
@@ -47,4 +52,5 @@ dependencies {
     implementation 'net.gotev:speech:1.6.2'
     implementation 'pl.droidsonroids.gif:android-gif-drawable:1.2.24'
     implementation 'com.google.android.gms:play-services-maps:18.0.2'
+    implementation 'com.journeyapps:zxing-android-embedded:4.1.0'
 }

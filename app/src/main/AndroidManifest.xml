@@ -19,6 +19,10 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyCVKf72OGNLLKbSPNXlo9QE7Q63hScAbzk" />
 
+        <activity android:name=".CaptureActivityPortrait"
+            android:screenOrientation="sensorPortrait"
+            android:stateNotNeeded="true"
+            android:windowSoftInputMode="stateAlwaysHidden" />
         <activity android:name=".TrackerMapActivity" />
         <activity android:name=".ScanLocallyActivity" />
         <activity android:name=".MainActivity"/>

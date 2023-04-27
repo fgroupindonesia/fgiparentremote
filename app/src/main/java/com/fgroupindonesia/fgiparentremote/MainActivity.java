@@ -2,7 +2,9 @@ package com.fgroupindonesia.fgiparentremote;
 
 import android.Manifest;
 import android.app.Dialog;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -18,12 +20,16 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
+import android.widget.Switch;
 import android.widget.TableLayout;
 import android.widget.TextView;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.gson.Gson;
+import com.google.zxing.integration.android.IntentIntegrator;
+import com.google.zxing.integration.android.IntentResult;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,19 +37,26 @@ import java.util.List;
 import bean.Entry;
 import bean.TargetProfile;
 import helper.Keys;
+import helper.Navigator;
+import helper.RespondHelper;
 import helper.ShowDialog;
+import helper.URLReference;
 import helper.UserData;
+import helper.WebRequest;
+
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements Navigator {
 
-    Button buttonConnect;
-    TextView textViewMessage, textViewMute, textViewInfo;
+
+    TextView textViewMessage, textViewMute, textViewInfo,
+            textviewProfileLink;
     ImageView imageViewMessage;
     EditText editTextRemoteIP;
     SeekBar seekBarVolume;
     EditText edtMessage;
+    Switch switchMode;
 
     int currentVol = 0;
     boolean access = false;
@@ -79,6 +92,9 @@ public class MainActivity extends AppCompatActivity {
         // for storing profile later
         loadStoredProfileData();
 
+        switchMode = (Switch) findViewById(R.id.switchMode);
+        textviewProfileLink = (TextView) findViewById(R.id.textviewProfileLink);
+
         //buttonConnect = (Button) findViewById(R.id.buttonConnect);
         tableLayout = (TableLayout) findViewById(R.id.tableLayout);
 
@@ -92,7 +108,7 @@ public class MainActivity extends AppCompatActivity {
         linearAudio = (LinearLayout) findViewById(R.id.linearAudio);
         linearMessage = (LinearLayout) findViewById(R.id.linearMessage);
 
-       // textViewInfo = (TextView) findViewById(R.id.textViewInfo);
+        // textViewInfo = (TextView) findViewById(R.id.textViewInfo);
         textViewMute = (TextView) findViewById(R.id.textViewMute);
         // this is the text below the picture (message menu)
         textViewMessage = (TextView) findViewById(R.id.textViewMessage);
@@ -177,7 +193,7 @@ public class MainActivity extends AppCompatActivity {
     public void killApp(String filename) {
         if (access) {
             String x = createEntryAsJSONString("kill_app", filename);
-           // new Thread(new ThreadSender(x)).start();
+            // new Thread(new ThreadSender(x)).start();
             //hideAccess(true);
         } else {
             ShowDialog.message(this, "connect first!");
@@ -200,7 +216,7 @@ public class MainActivity extends AppCompatActivity {
 
         progressBarLoadingApp = dialog.findViewById(R.id.progressBarLoadingApp);
 
-        ArrayAdapter <String> adapter = new ArrayAdapter<String>(this,
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
                 android.R.layout.simple_list_item_1,
                 listAppNames);
         lstAppName.setAdapter(adapter);
@@ -235,7 +251,7 @@ public class MainActivity extends AppCompatActivity {
     public void listApp(View v) {
         if (access) {
             String x = createEntryAsJSONString("list_app", null);
-           // new Thread(new ThreadSender(x)).start();
+            // new Thread(new ThreadSender(x)).start();
             hideAccess(true);
             showListingApp();
         } else {
@@ -259,7 +275,7 @@ public class MainActivity extends AppCompatActivity {
 
             if (v.getTag().toString().equalsIgnoreCase("mute")) {
                 String x = createEntryAsJSONString("mute_audio", null);
-               // new Thread(new ThreadSender(x)).start();
+                // new Thread(new ThreadSender(x)).start();
                 v.setTag("unmute");
                 imageViewAudio.setImageResource(R.drawable.unmute);
                 textViewMute.setText("Unmute Audio");
@@ -289,11 +305,11 @@ public class MainActivity extends AppCompatActivity {
     private void hideAccess(boolean b) {
         if (b) {
             tableLayout.setAlpha(0.4f);
-            buttonConnect.setVisibility(View.VISIBLE);
+
 
         } else {
             tableLayout.setAlpha(1f);
-            buttonConnect.setVisibility(View.INVISIBLE);
+
 
         }
     }
@@ -385,23 +401,100 @@ public class MainActivity extends AppCompatActivity {
         try {
             String versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
             ShowDialog.message(this, "FGI Parent Control Remote v" + versionName + " -Android-");
-        } catch (Exception ex){
+        } catch (Exception ex) {
 
         }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        IntentResult intentResult = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
+        // if the intentResult is null then
+        // toast a message as "cancelled"
+        if (intentResult != null) {
+            if (intentResult.getContents() == null) {
+                ShowDialog.message(this, "Cancel");
+            } else {
+                ShowDialog.message(this, intentResult.getContents());
+                //messageFormat.setText(intentResult.getFormatName());
+            }
+        } else {
+            super.onActivityResult(requestCode, resultCode, data);
+        }
+    }
+
+    boolean modeGlobal = false;
+
+    public void switchMode(View v) {
+        if (switchMode.isChecked()) {
+            switchMode.setText("Mode : Global");
+            modeGlobal = true;
+        } else {
+            switchMode.setText("Mode : Local");
+            modeGlobal = false;
+        }
+
+        workAppropriately();
+    }
+
+    private void workAppropriately() {
+        if (modeGlobal) {
+            // we post to REST API
+            initializeDevice();
+
+        } else {
+            // we try to connect by Socket
+        }
+    }
+
+    private void initializeDevice() {
+        WebRequest httpCall = new WebRequest(MainActivity.this, MainActivity.this);
+
+        httpCall.addData("uuid", myUUID);
+
+        // we need to wait for the response
+        httpCall.setWaitState(true);
+        httpCall.setRequestMethod(WebRequest.POST_METHOD);
+        httpCall.setTargetURL(URLReference.RemoteInitialize);
+        httpCall.execute();
+    }
+
+    String myUUID;
+
+    public void chatWAAdmin(View v) {
+
+        myUUID = UserData.getPreferenceString(Keys.DEVICE_UUID);
+
+        // change this http://192.168.0.2 to
+        // http://api.fgic.fgroupindonesia.com later when ALIVE
+        String apiLink = URLReference.RemotePurchaseLicense + "?language=id&uuid=" + myUUID;
+        Intent intent = new Intent(Intent.ACTION_VIEW).setData(Uri.parse(apiLink));
+        startActivity(intent);
+    }
+
+    public void scanQRCode(View v) {
+        IntentIntegrator intentIntegrator = new IntentIntegrator(this);
+        intentIntegrator.setPrompt("Scan a barcode or QR Code");
+        intentIntegrator.setOrientationLocked(true);
+        intentIntegrator.setBeepEnabled(true);
+        intentIntegrator.setCaptureActivity(CaptureActivityPortrait.class);
+
+        intentIntegrator.initiateScan();
     }
 
     public void showLocation(View v) {
 
     }
 
-    MenuItem menuDisconnect;
+    //MenuItem menuDisconnect;
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.action_menu, menu);
 
-       // menuDisconnect = menu.findItem(R.id.disconnect);
+        // menuDisconnect = menu.findItem(R.id.disconnect);
         //menuDisconnect.setVisible(false);
         //menuSaveProfile = menu.findItem(R.id.save_profile);
         //menuSaveProfile.setVisible(false);
@@ -414,10 +507,10 @@ public class MainActivity extends AppCompatActivity {
 
         // when it is connected
         if (SERVER_IP != null) {
-            menuDisconnect.setVisible(true);
+            // menuDisconnect.setVisible(true);
             //menuSaveProfile.setVisible(true);
         } else {
-            menuDisconnect.setVisible(false);
+            //menuDisconnect.setVisible(false);
             //menuSaveProfile.setVisible(false);
         }
         super.onPrepareOptionsMenu(menu);
@@ -442,6 +535,35 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    @Override
+    public void nextActivity() {
+
+    }
+
+    @Override
+    public void onSuccess(String urlTarget, String respond) {
+
+        try {
+            // ShowDialog.message(this, "dapt " + respond);
+
+            Gson objectG = new Gson();
+
+            if (RespondHelper.isValidRespond(respond)) {
+
+                if (urlTarget.contains(URLReference.RemoteInitialize)) {
+                    String yourname = UserData.getPreferenceString(Keys.FULLNAME);
+                    textviewProfileLink.setText(yourname);
+                }
+
+
+            }
+
+
+        } catch (Exception ex) {
+
+        }
+
+    }
 }
 
 

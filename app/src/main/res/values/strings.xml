@@ -22,6 +22,8 @@
     <string name="label_toggle_mode">Mode : Local</string>
     <string name="label_uuid">UUID : xxxx</string>
     <string name="label_register_first">Register First</string>
+    <string name="label_registration_success">Registration Success</string>
+    <string name="label_registration_inbox_email">Now check your <b>Inbox Email</b> to continue activating throught out the link given.</string>
     <string name="label_add_client">Add Client</string>
     <string name="label_purchase_premium"><u>Purchase Premium Access</u></string>
     <string name="label_button_save">Save</string>

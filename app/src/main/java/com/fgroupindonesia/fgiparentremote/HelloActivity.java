@@ -19,7 +19,7 @@ import pl.droidsonroids.gif.GifImageView;
 
 public class HelloActivity extends AppCompatActivity {
 
-    LinearLayout linearFirst, linearSecond;
+    LinearLayout linearFirst, linearSecond, linearThird;
     EditText editTextFullname, editTextEmail, editTextWhatsapp;
 
     GifImageView gifAnimatedWaitingFinal, gifAnimatedWaiting;
@@ -47,6 +47,7 @@ public class HelloActivity extends AppCompatActivity {
 
         linearFirst = (LinearLayout) findViewById(R.id.linearFirst);
         linearSecond = (LinearLayout) findViewById(R.id.linearSecond);
+        linearThird = (LinearLayout) findViewById(R.id.linearThird);
 
         editTextEmail = (EditText) findViewById(R.id.editTextEmail);
         editTextFullname = (EditText) findViewById(R.id.editTextFullname);
@@ -67,6 +68,13 @@ public class HelloActivity extends AppCompatActivity {
     private void generateUUID(){
         String id = UUID.randomUUID().toString();
         textviewUUID.setText(id);
+
+        UserData.savePreference(Keys.DEVICE_UUID, id);
+    }
+
+    public void closeApp(View v){
+        nextActivity();
+        // finishAffinity();
     }
 
     public void readyProceed(View v){
@@ -87,7 +95,7 @@ public class HelloActivity extends AppCompatActivity {
 
         UserData.savePreference(Keys.FORM_FILLED, true);
 
-        nextActivity();
+        successMessage();
 
     }
 
@@ -102,8 +110,25 @@ public class HelloActivity extends AppCompatActivity {
         buttonSave.setVisibility(View.INVISIBLE);
     }
 
+    private void successMessage(){
+        int TIME_OUT = 3000;
+
+        textViewMessage.setText("waiting...");
+
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                linearThird.setVisibility(View.VISIBLE);
+                linearSecond.setVisibility(View.GONE);
+            }
+        }, TIME_OUT);
+    }
+
     private void nextActivity(){
         int TIME_OUT = 3000;
+
+        linearThird.setVisibility(View.GONE);
+        linearSecond.setVisibility(View.VISIBLE);
 
         textViewMessage.setText("waiting...");
 
