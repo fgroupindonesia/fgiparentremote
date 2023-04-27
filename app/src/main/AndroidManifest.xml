@@ -17,7 +17,8 @@
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyCVKf72OGNLLKbSPNXlo9QE7Q63hScAbzk" />
+            android:value="kzbAcSh36Q.7EQ9olXNPSbKLLNGO27.fKVCySazIA" />
+			<!-- it is reversed code remove the dot if you need it -->
 
         <activity android:name=".CaptureActivityPortrait"
             android:screenOrientation="sensorPortrait"
