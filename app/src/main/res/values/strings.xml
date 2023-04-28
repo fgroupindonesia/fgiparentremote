@@ -21,6 +21,7 @@
     <string name="label_button_ready">Ready!</string>
     <string name="label_toggle_mode">Mode : Local</string>
     <string name="label_uuid">UUID : xxxx</string>
+    <string name="label_already_registered">I have account already.</string>
     <string name="label_register_first">Register First</string>
     <string name="label_registration_success">Registration Success</string>
     <string name="label_registration_inbox_email">Now check your <b>Inbox Email</b> to continue activating throught out the link given.</string>

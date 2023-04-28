@@ -95,6 +95,10 @@ public class MainActivity extends AppCompatActivity implements Navigator {
         switchMode = (Switch) findViewById(R.id.switchMode);
         textviewProfileLink = (TextView) findViewById(R.id.textviewProfileLink);
 
+        if(UserData.getPreferenceBoolean(Keys.FORM_FILLED)){
+            textviewProfileLink.setText(UserData.getPreferenceString(Keys.FULLNAME));
+        }
+
         //buttonConnect = (Button) findViewById(R.id.buttonConnect);
         tableLayout = (TableLayout) findViewById(R.id.tableLayout);
 
