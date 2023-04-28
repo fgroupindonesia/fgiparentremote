@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:id="@+id/group1">
     <item
-        android:id="@+id/choose_client"
-        android:title="Choose Client" >
+        android:id="@+id/clear_all_target_profile"
+        android:title="Clear All Client" >
     </item>
+    </group>
+
+    <group android:id="@+id/group3">
     <item
-        android:id="@+id/save_profile"
-        android:title="Save Profile" >
+        android:id="@+id/logout"
+        android:title="Logout" >
     </item>
-    <item
-        android:id="@+id/maps"
-        android:title="Tracker" >
-    </item>
-    <item
-        android:id="@+id/settings"
-        android:title="Settings" >
-    </item>
+    </group>
+
+    <group android:id="@+id/group2">
     <item
         android:id="@+id/contact_admin"
         android:title="Help!" >
     </item>
+    </group>
 </menu>

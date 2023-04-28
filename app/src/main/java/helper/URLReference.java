@@ -15,6 +15,7 @@ public class URLReference {
     public static String RemoteInitialize = Server + "remote/initialize";
     public static String RemotePurchaseLicense = Server + "remote/purchase/license";
     public static String RemoteLogin = Server + "remote/login";
+    public static String RemoteAskHelp = Server + "remote/askhelp";
     public static String RemoteInputLicense = Server + "remote/input/license";
     public static String RemoteRegisterAccount = Server + "remote/register/account";
     public static String RemoteRegisterCilent = Server + "remote/register/client";

@@ -1,4 +1,4 @@
-package com.fgroupindonesia.fgiparentremote;
+package com.fgroupindonesia.fgipc.parentremote;
 
 import androidx.appcompat.app.AppCompatActivity;
 

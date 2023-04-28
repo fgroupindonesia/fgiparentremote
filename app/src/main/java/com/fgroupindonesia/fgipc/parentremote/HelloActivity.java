@@ -1,4 +1,4 @@
-package com.fgroupindonesia.fgiparentremote;
+package com.fgroupindonesia.fgipc.parentremote;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -14,8 +14,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
 
 import org.json.JSONObject;
 
@@ -56,7 +54,7 @@ public class HelloActivity extends AppCompatActivity implements Navigator {
         generateUUID();
 
         // underlining text
-        textViewLogin.setPaintFlags(textViewLogin.getPaintFlags() |   Paint.UNDERLINE_TEXT_FLAG);
+        textViewLogin.setPaintFlags(textViewLogin.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
 
         buttonSave = (Button) findViewById(R.id.buttonSave);
 
@@ -73,43 +71,61 @@ public class HelloActivity extends AppCompatActivity implements Navigator {
 
         // first time
         boolean formFilled = UserData.getPreferenceBoolean(Keys.FORM_FILLED);
-        if(!formFilled) {
+        if (!formFilled) {
             linearFirst.setVisibility(View.VISIBLE);
             linearSecond.setVisibility(View.GONE);
-        } else{
+        } else {
             hideDataForm();
             nextActivity();
         }
 
     }
 
-    private void generateUUID(){
-        String id = UUID.randomUUID().toString();
-        textviewUUID.setText("UUID : " + id);
-
-        UserData.savePreference(Keys.DEVICE_UUID, id);
+    private boolean isUUIDStored() {
+        String uuidna = UserData.getPreferenceString(Keys.DEVICE_UUID);
+        if (uuidna !=null) {
+            if(!uuidna.isEmpty())
+            return true;
+        }
+        return false;
     }
 
-    public void closeApp(View v){
+    private void generateUUID() {
+        String id;
+        if (!isUUIDStored()) {
+            id = UUID.randomUUID().toString().toUpperCase();
+
+            UserData.savePreference(Keys.DEVICE_UUID, id);
+            // clear any stored profile if any
+
+            UserData.savePreference(Keys.TARGET_PROFILE, null);
+        }else{
+            id = UserData.getPreferenceString(Keys.DEVICE_UUID);
+        }
+
+        textviewUUID.setText("UUID : " + id);
+    }
+
+    public void closeApp(View v) {
         nextActivity();
         // finishAffinity();
     }
 
-    public void readyProceed(View v){
+    public void readyProceed(View v) {
         linearFirst.setVisibility(View.GONE);
         linearSecond.setVisibility(View.VISIBLE);
     }
 
-    public String getText(EditText ed){
-        return  ed.getText().toString();
+    public String getText(EditText ed) {
+        return ed.getText().toString();
     }
 
-    public String getText(Button ed){
-        return  ed.getText().toString();
+    public String getText(Button ed) {
+        return ed.getText().toString();
     }
 
-    public void saveForm(View v){
-        if(!getText(buttonSave).equalsIgnoreCase("login")) {
+    public void saveForm(View v) {
+        if (!getText(buttonSave).equalsIgnoreCase("login")) {
             UserData.savePreference(Keys.EMAIL, getText(editTextEmail));
             UserData.savePreference(Keys.FULLNAME, getText(editTextFullname));
             UserData.savePreference(Keys.WHATSAPP, getText(editTextWhatsapp));
@@ -119,12 +135,12 @@ public class HelloActivity extends AppCompatActivity implements Navigator {
             UserData.savePreference(Keys.FORM_FILLED, true);
 
             successMessage();
-        }else{
+        } else {
             // if it is for login
-            if(getText(editTextWhatsapp).isEmpty() || getText(editTextEmail).isEmpty()){
+            if (getText(editTextWhatsapp).isEmpty() || getText(editTextEmail).isEmpty()) {
                 textViewMessage.setText("Please fill the login cridential here...");
                 buzzEffect();
-            }else {
+            } else {
                 lockTemporarily(true);
                 loginUser();
             }
@@ -133,7 +149,7 @@ public class HelloActivity extends AppCompatActivity implements Navigator {
 
     }
 
-    private void buzzEffect(){
+    private void buzzEffect() {
         ObjectAnimator rotate = ObjectAnimator.ofFloat(gifAnimatedWaiting, "rotation", 0f, 20f, 0f, -20f, 0f); // rotate o degree then 20 degree and so on for one loop of rotation.
 
         rotate.setRepeatCount(10); // repeat the loop 10 times
@@ -148,6 +164,7 @@ public class HelloActivity extends AppCompatActivity implements Navigator {
 
         httpCall.addData("email", getText(editTextEmail));
         httpCall.addData("whatsapp", getText(editTextWhatsapp));
+        httpCall.addData("uuid", UserData.getPreferenceString(Keys.DEVICE_UUID));
 
         // we need to wait for the response
         httpCall.setWaitState(true);
@@ -157,7 +174,7 @@ public class HelloActivity extends AppCompatActivity implements Navigator {
 
     }
 
-    public void showLoginForm(View v){
+    public void showLoginForm(View v) {
         textViewMessage.setText("Okay, let's try logging in...");
         linearThird.setVisibility(View.GONE);
         linearSecond.setVisibility(View.VISIBLE);
@@ -168,7 +185,7 @@ public class HelloActivity extends AppCompatActivity implements Navigator {
         textViewLogin.setVisibility(View.GONE);
     }
 
-    private void hideDataForm(){
+    private void hideDataForm() {
         gifAnimatedWaiting.setVisibility(View.GONE);
         gifAnimatedWaitingFinal.setVisibility(View.VISIBLE);
 
@@ -177,12 +194,14 @@ public class HelloActivity extends AppCompatActivity implements Navigator {
         editTextWhatsapp.setVisibility(View.INVISIBLE);
 
         buttonSave.setVisibility(View.INVISIBLE);
+        textViewLogin.setVisibility(View.GONE);
     }
 
-    private void successMessage(){
+    private void successMessage() {
         int TIME_OUT = 3000;
 
         textViewMessage.setText("waiting...");
+        textViewLogin.setVisibility(View.GONE);
 
         new Handler().postDelayed(new Runnable() {
             @Override
@@ -193,16 +212,16 @@ public class HelloActivity extends AppCompatActivity implements Navigator {
         }, TIME_OUT);
     }
 
-    private void lockTemporarily(boolean b){
+    private void lockTemporarily(boolean b) {
         editTextWhatsapp.setEnabled(!b);
         editTextEmail.setEnabled(!b);
         editTextFullname.setEnabled(!b);
-        
+
         buttonSave.setEnabled(!b);
     }
 
     @Override
-    public void nextActivity(){
+    public void nextActivity() {
         int TIME_OUT = 3000;
 
         linearThird.setVisibility(View.GONE);
@@ -219,7 +238,6 @@ public class HelloActivity extends AppCompatActivity implements Navigator {
             }
         }, TIME_OUT);
     }
-
 
 
     @Override
@@ -247,7 +265,7 @@ public class HelloActivity extends AppCompatActivity implements Navigator {
                 }
 
 
-            }else{
+            } else {
 
                 // when the login fails
                 if (urlTarget.contains(URLReference.RemoteLogin)) {
@@ -256,9 +274,9 @@ public class HelloActivity extends AppCompatActivity implements Navigator {
                     wrongLoginCount++;
                     buzzEffect();
 
-                    if(wrongLoginCount==2){
+                    if (wrongLoginCount == 2) {
                         textViewMessage.setText("Are you sure already registered?");
-                    }else if(wrongLoginCount>2){
+                    } else if (wrongLoginCount > 2) {
                         textViewMessage.setText("Please contact admin for more help!");
                     }
                 }

@@ -1,16 +1,13 @@
-package com.fgroupindonesia.fgiparentremote;
+package com.fgroupindonesia.fgipc.parentremote;
 
 import android.os.Bundle;
 import android.os.StrictMode;
 import android.text.InputType;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
-
-import org.w3c.dom.Text;
 
 import helper.SocketScanner;
 

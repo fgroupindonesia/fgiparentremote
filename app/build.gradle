@@ -28,11 +28,11 @@ android {
     buildToolsVersion "30.0.2"
 
     defaultConfig {
-        applicationId "com.fgroupindonesia.fgiparentremote"
+        applicationId "com.fgroupindonesia.fgipc.parentremote"
         minSdkVersion 24
         targetSdkVersion 30
-        versionCode 5
-        versionName "1.4"
+        versionCode 6
+        versionName "1.5"
     }
 
     buildTypes {
@@ -53,4 +53,6 @@ dependencies {
     implementation 'pl.droidsonroids.gif:android-gif-drawable:1.2.24'
     implementation 'com.google.android.gms:play-services-maps:18.0.2'
     implementation 'com.journeyapps:zxing-android-embedded:4.1.0'
+    implementation 'androidx.recyclerview:recyclerview:1.1.0'
+
 }

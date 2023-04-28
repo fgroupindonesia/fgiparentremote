@@ -1,4 +1,4 @@
-package com.fgroupindonesia.fgiparentremote;
+package com.fgroupindonesia.fgipc.parentremote;
 
 import android.Manifest;
 import android.app.Dialog;
@@ -32,6 +32,8 @@ import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import bean.Entry;
@@ -43,9 +45,14 @@ import helper.ShowDialog;
 import helper.URLReference;
 import helper.UserData;
 import helper.WebRequest;
+import helper.recyclerworks.ClickListener;
+import helper.recyclerworks.ClientAdapter;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.MenuCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 public class MainActivity extends AppCompatActivity implements Navigator {
 
@@ -57,6 +64,12 @@ public class MainActivity extends AppCompatActivity implements Navigator {
     SeekBar seekBarVolume;
     EditText edtMessage;
     Switch switchMode;
+    TargetProfile singleTargetProfile;
+
+    List<TargetProfile>listTargetProfile;
+    RecyclerView recyclerViewClient;
+    ClientAdapter targetProfileClientAdapter;
+    LinearLayoutManager linearLayoutManager;
 
     int currentVol = 0;
     boolean access = false;
@@ -78,6 +91,7 @@ public class MainActivity extends AppCompatActivity implements Navigator {
     Dialog dialog;
 
     ProgressBar progressBarLoadingApp;
+    ClickListener clickTargetProfileListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,13 +104,14 @@ public class MainActivity extends AppCompatActivity implements Navigator {
         UserData.setPreference(this);
 
         // for storing profile later
-        loadStoredProfileData();
+        loadStoredTargetProfile();
 
         switchMode = (Switch) findViewById(R.id.switchMode);
         textviewProfileLink = (TextView) findViewById(R.id.textviewProfileLink);
 
         if(UserData.getPreferenceBoolean(Keys.FORM_FILLED)){
             textviewProfileLink.setText(UserData.getPreferenceString(Keys.FULLNAME));
+            myUUID = UserData.getPreferenceString(Keys.DEVICE_UUID);
         }
 
         //buttonConnect = (Button) findViewById(R.id.buttonConnect);
@@ -123,6 +138,22 @@ public class MainActivity extends AppCompatActivity implements Navigator {
         seekBarVolume.setProgress(0);
         seekBarVolume.setEnabled(false);
 
+        recyclerViewClient = (RecyclerView)findViewById(R.id.recyclerViewClient);
+        clickTargetProfileListener = new ClickListener() {
+            @Override
+            public void click(int index) {
+                // do something when clicked
+            }
+        };
+
+        linearLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false);
+        targetProfileClientAdapter = new ClientAdapter(getAllTargetProfile(), getApplication(), clickTargetProfileListener );
+
+        recyclerViewClient.setLayoutManager(linearLayoutManager);
+        recyclerViewClient.setAdapter(targetProfileClientAdapter);
+
+
+
         // set the onchangelistener
         applyOnChangedListener(seekBarVolume);
 
@@ -133,8 +164,35 @@ public class MainActivity extends AppCompatActivity implements Navigator {
         // showLayout(MODE_LAYOUT_LOADING);
         // showLoading();
 
-        //UserData.savePreference(Keys.TARGET_PROFILE, null);
+
         checkAndRequestPermissions();
+    }
+
+
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.contact_admin:
+                chatWAAdminForHelp();
+                break;
+            case R.id.logout:
+                loggingOut();
+                break;
+            case R.id.clear_all_target_profile:
+                deleteStoredTargetProfile();
+                break;
+
+            default:
+        }
+
+        return true;
+    }
+
+    private void loggingOut(){
+        // clear everything
+        UserData.destroyAll();
+        finishAffinity();
     }
 
     private void showAddMessageLayout() {
@@ -301,9 +359,37 @@ public class MainActivity extends AppCompatActivity implements Navigator {
 
     }
 
-    private void loadStoredProfileData() {
+    private void deleteStoredTargetProfile(){
+        UserData.savePreference(Keys.TARGET_PROFILE, null);
+        STORED_PROFILE = null;
+        tpList = null;
+        recyclerViewClient.setAdapter(null);
+        targetProfileClientAdapter.clearItems();
+
+        if(!listTargetProfile.isEmpty()){
+            listTargetProfile = Collections.emptyList();
+        }
+    }
+    
+    private void loadStoredTargetProfile() {
         STORED_PROFILE = UserData.getPreferenceString(Keys.TARGET_PROFILE);
+
+        if(STORED_PROFILE!=null)
         tpList = new Gson().fromJson(STORED_PROFILE, TargetProfile[].class);
+
+        ShowDialog.shortMessage(this, "I dunno " + STORED_PROFILE);
+
+    }
+
+    private List<TargetProfile> getAllTargetProfile(){
+        if(listTargetProfile==null)
+       listTargetProfile = Collections.emptyList();
+
+        if(tpList!=null){
+            listTargetProfile = Arrays.asList(tpList);
+        }
+
+        return listTargetProfile;
     }
 
     private void hideAccess(boolean b) {
@@ -420,8 +506,19 @@ public class MainActivity extends AppCompatActivity implements Navigator {
             if (intentResult.getContents() == null) {
                 ShowDialog.message(this, "Cancel");
             } else {
-                ShowDialog.message(this, intentResult.getContents());
-                //messageFormat.setText(intentResult.getFormatName());
+                String dataHasilScan = intentResult.getContents();
+
+                String uuidClient = dataHasilScan.split(";")[0];
+                String ipClient = dataHasilScan.split(";")[1];
+                String typeNa = dataHasilScan.split(";")[2];
+
+                singleTargetProfile = new TargetProfile("", ipClient, uuidClient, typeNa);
+
+                ShowDialog.message(this,  dataHasilScan);
+
+                registerClientFound();
+
+
             }
         } else {
             super.onActivityResult(requestCode, resultCode, data);
@@ -464,11 +561,29 @@ public class MainActivity extends AppCompatActivity implements Navigator {
         httpCall.execute();
     }
 
+    private void registerClientFound(){
+        WebRequest httpCall = new WebRequest(MainActivity.this, MainActivity.this);
+
+        httpCall.addData("uuid_client", singleTargetProfile.getUuid());
+        httpCall.addData("uuid_remote", myUUID);
+        httpCall.addData("ip_address", singleTargetProfile.getIp_address());
+
+        // we need to wait for the response
+        httpCall.setWaitState(true);
+        httpCall.setRequestMethod(WebRequest.POST_METHOD);
+        httpCall.setTargetURL(URLReference.RemoteRegisterCilent);
+        httpCall.execute();
+    }
+
     String myUUID;
 
-    public void chatWAAdmin(View v) {
+    private void chatWAAdminForHelp(){
+        String apiLink = URLReference.RemoteAskHelp + "?language=id&uuid=" + myUUID;
+        Intent intent = new Intent(Intent.ACTION_VIEW).setData(Uri.parse(apiLink));
+        startActivity(intent);
+    }
 
-        myUUID = UserData.getPreferenceString(Keys.DEVICE_UUID);
+    public void chatWAAdmin(View v) {
 
         // change this http://192.168.0.2 to
         // http://api.fgic.fgroupindonesia.com later when ALIVE
@@ -497,6 +612,7 @@ public class MainActivity extends AppCompatActivity implements Navigator {
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.action_menu, menu);
+        MenuCompat.setGroupDividerEnabled(menu, true);
 
         // menuDisconnect = menu.findItem(R.id.disconnect);
         //menuDisconnect.setVisible(false);
@@ -539,6 +655,56 @@ public class MainActivity extends AppCompatActivity implements Navigator {
 
     }
 
+    private TargetProfile[] createCopy(TargetProfile[] tpr, TargetProfile tp1) {
+        TargetProfile[] tpNew = new TargetProfile[tpr.length + 1];
+        int x = 0;
+
+        for (TargetProfile tpSingle : tpr) {
+            tpNew[x] = tpSingle;
+            x++;
+        }
+
+        // last position
+        tpNew[x] = tp1;
+        return tpNew;
+    }
+
+    private void addStoredProfile(TargetProfile tp) {
+        Gson n = new Gson();
+
+        // save as JSON temporarily
+
+        if (STORED_PROFILE == null) {
+            // creating array
+            tpList = new TargetProfile[1];
+            tpList[0] = tp;
+        } else {
+            // if there is a data
+            // we grab as array
+
+            // create a new one with additional data
+            tpList = createCopy(tpList, tp);
+
+        }
+
+        if (tpList != null) {
+            STORED_PROFILE = n.toJson(tpList);
+            UserData.savePreference(Keys.TARGET_PROFILE, STORED_PROFILE);
+        }
+
+        ShowDialog.message(this, "Profile saved completely! now \n"+STORED_PROFILE);
+    }
+
+    private void renderClientRecycler(){
+
+        getAllTargetProfile();
+        targetProfileClientAdapter.setNewItems(listTargetProfile);
+
+        if(recyclerViewClient.getAdapter()==null)
+        recyclerViewClient.setAdapter(targetProfileClientAdapter);
+    }
+
+
     @Override
     public void nextActivity() {
 
@@ -557,14 +723,22 @@ public class MainActivity extends AppCompatActivity implements Navigator {
                 if (urlTarget.contains(URLReference.RemoteInitialize)) {
                     String yourname = UserData.getPreferenceString(Keys.FULLNAME);
                     textviewProfileLink.setText(yourname);
+                }else if(urlTarget.contains(URLReference.RemoteRegisterCilent)){
+                    // add data locally on array
+                    addStoredProfile(singleTargetProfile);
+                    // then call back the recyclerview
+                    renderClientRecycler();
                 }
 
+            }
 
+            if(urlTarget.contains(URLReference.RemoteRegisterCilent)) {
+                ShowDialog.message(this, "ada  " + respond);
             }
 
 
         } catch (Exception ex) {
-
+            ShowDialog.message(this, "success error " + ex.getMessage());
         }
 
     }
@@ -656,7 +830,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void loadStoredProfileData() {
+    private void loadStoredTargetProfile() {
         STORED_PROFILE = UserData.getPreferenceString(Keys.TARGET_PROFILE);
         tpList = new Gson().fromJson(STORED_PROFILE, TargetProfile[].class);
     }
@@ -707,7 +881,7 @@ public class MainActivity extends AppCompatActivity {
         UserData.setPreference(this);
 
         // for storing profile later
-        loadStoredProfileData();
+        loadStoredTargetProfile();
 
         buttonConnect = (Button) findViewById(R.id.buttonConnect);
         tableLayout = (TableLayout) findViewById(R.id.tableLayout);

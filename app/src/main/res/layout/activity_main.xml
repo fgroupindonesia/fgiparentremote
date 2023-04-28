@@ -90,20 +90,19 @@
             android:orientation="horizontal"
             android:paddingRight="5dp">
 
-            <HorizontalScrollView
+            <androidx.recyclerview.widget.RecyclerView
+                android:scrollbars="horizontal"
+                android:id="@+id/recyclerViewClient"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_weight="1">
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical" />
-            </HorizontalScrollView>
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:paddingLeft="20dp"
+                android:paddingRight="10dp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:layout_weight="2"
                 android:orientation="horizontal">
 
